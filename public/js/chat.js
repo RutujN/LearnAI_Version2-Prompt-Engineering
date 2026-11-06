@@ -213,7 +213,9 @@ export async function sendMessage() {
 
   isLoading = false;
   document.getElementById("sendBtn").disabled = false;
-  input.focus();
+  if (window.innerWidth > 768) {
+    input.focus();
+  }
 }
 
 // ── Utilities ──────────────────────────────

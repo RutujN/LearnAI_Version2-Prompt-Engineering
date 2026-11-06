@@ -28,6 +28,103 @@ UI.setUIChatCallbacks({
   }),
 });
 
+// ── Device & Drawer Helpers ────────────────
+const isMobile = () => window.innerWidth <= 768;
+
+function openLeft() {
+  const sidebar  = document.getElementById("leftSidebar");
+  const backdrop = document.getElementById("backdrop");
+  if (isMobile()) {
+    closeRight();
+    sidebar.classList.add("mobile-open");
+    backdrop.classList.add("visible");
+    document.body.classList.add("drawer-open");
+  } else {
+    const rail = document.getElementById("leftRail");
+    sidebar.classList.remove("collapsed");
+    rail.classList.remove("visible");
+  }
+}
+
+function closeLeft() {
+  const sidebar  = document.getElementById("leftSidebar");
+  const backdrop = document.getElementById("backdrop");
+  if (isMobile()) {
+    sidebar.classList.remove("mobile-open");
+    if (!document.getElementById("rightPanel")?.classList.contains("mobile-open")) {
+      backdrop.classList.remove("visible");
+      document.body.classList.remove("drawer-open");
+    }
+  } else {
+    const rail = document.getElementById("leftRail");
+    sidebar.classList.add("collapsed");
+    rail.classList.add("visible");
+  }
+}
+
+function toggleLeft() {
+  const sidebar = document.getElementById("leftSidebar");
+  if (isMobile()) {
+    if (sidebar.classList.contains("mobile-open")) {
+      closeLeft();
+    } else {
+      openLeft();
+    }
+  } else {
+    closeLeft();
+  }
+}
+
+function openRight() {
+  const panel    = document.getElementById("rightPanel");
+  const backdrop = document.getElementById("backdrop");
+  if (isMobile()) {
+    closeLeft();
+    panel.classList.add("mobile-open");
+    backdrop.classList.add("visible");
+    document.body.classList.add("drawer-open");
+  } else {
+    panel.classList.remove("collapsed");
+  }
+}
+
+function closeRight() {
+  const panel    = document.getElementById("rightPanel");
+  const backdrop = document.getElementById("backdrop");
+  if (isMobile()) {
+    panel.classList.remove("mobile-open");
+    if (!document.getElementById("leftSidebar")?.classList.contains("mobile-open")) {
+      backdrop.classList.remove("visible");
+      document.body.classList.remove("drawer-open");
+    }
+  } else {
+    panel.classList.add("collapsed");
+  }
+}
+
+function toggleRight() {
+  const panel = document.getElementById("rightPanel");
+  if (isMobile()) {
+    if (panel.classList.contains("mobile-open")) {
+      closeRight();
+    } else {
+      openRight();
+    }
+  } else {
+    panel.classList.toggle("collapsed");
+  }
+}
+
+export function closeAllMobileDrawers() {
+  const sidebar  = document.getElementById("leftSidebar");
+  const panel    = document.getElementById("rightPanel");
+  const backdrop = document.getElementById("backdrop");
+  if (sidebar) sidebar.classList.remove("mobile-open");
+  if (panel)   panel.classList.remove("mobile-open");
+  if (backdrop) backdrop.classList.remove("visible");
+  document.body.classList.remove("drawer-open");
+}
+
 // ── Build mode list ────────────────────────
 function buildModeList() {
   const list = document.getElementById("modeList");
@@ -39,28 +136,12 @@ function buildModeList() {
       <div class="mode-dot"></div>
       <div class="mode-icon">${m.icon}</div>
       <span>${m.label}</span>`;
-    btn.addEventListener("click", () => Chat.selectMode(btn));
+    btn.addEventListener("click", () => {
+      Chat.selectMode(btn);
+      closeAllMobileDrawers();
+    });
     list.appendChild(btn);
   });
-}
-
-// ── Sidebar toggles ────────────────────────
-function toggleLeft() {
-  const sidebar = document.getElementById("leftSidebar");
-  const rail    = document.getElementById("leftRail");
-  sidebar.classList.add("collapsed");
-  rail.classList.add("visible");
-}
-
-function expandLeft() {
-  const sidebar = document.getElementById("leftSidebar");
-  const rail    = document.getElementById("leftRail");
-  sidebar.classList.remove("collapsed");
-  rail.classList.remove("visible");
-}
-
-function toggleRight() {
-  document.getElementById("rightPanel").classList.toggle("collapsed");
 }
 
 // ── Prompt viewer ───────────────────────────
@@ -101,17 +182,58 @@ function copyLast() {
   navigator.clipboard.writeText(all[all.length - 1].innerText).then(() => {
     const btn  = document.getElementById("copyLastBtn");
     const orig = btn.innerHTML;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"/></svg> Copied`;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"/></svg><span class="tb-btn-text"> Copied</span>`;
     setTimeout(() => (btn.innerHTML = orig), 1800);
   });
 }
 
 // ── Event listeners ────────────────────────
 function bindEvents() {
+  const menuBtn = document.getElementById("menuBtn");
+  if (menuBtn) menuBtn.addEventListener("click", openLeft);
+
   document.getElementById("toggleLeftBtn").addEventListener("click",  toggleLeft);
-  document.getElementById("expandLeftBtn").addEventListener("click",  expandLeft);
+  document.getElementById("expandLeftBtn").addEventListener("click",  openLeft);
   document.getElementById("toggleRightBtn").addEventListener("click", toggleRight);
-  document.getElementById("newChatBtn").addEventListener("click",     Chat.newChat);
+
+  const closeRightBtn = document.getElementById("closeRightBtn");
+  if (closeRightBtn) closeRightBtn.addEventListener("click", closeRight);
+
+  const backdrop = document.getElementById("backdrop");
+  if (backdrop) backdrop.addEventListener("click", closeAllMobileDrawers);
+
+  document.getElementById("newChatBtn").addEventListener("click", () => {
+    Chat.newChat();
+    closeAllMobileDrawers();
+  });
+
+  // Close mobile drawer when selecting a conversation or quick prompt
+  document.getElementById("historyList").addEventListener("click", (e) => {
+    if (e.target.closest(".history-item") && !e.target.closest(".history-item-del")) {
+      closeAllMobileDrawers();
+    }
+  });
+
+  document.getElementById("quickPrompts").addEventListener("click", (e) => {
+    if (e.target.closest(".quick-prompt")) {
+      closeAllMobileDrawers();
+    }
+  });
+
+  // Handle escape key to dismiss open mobile drawers
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeAllMobileDrawers();
+    }
+  });
+
+  // Auto clean-up mobile drawer states when resizing to desktop
+  window.addEventListener("resize", () => {
+    if (!isMobile()) {
+      closeAllMobileDrawers();
+    }
+  });
+
   document.getElementById("sendBtn").addEventListener("click",        Chat.sendMessage);
   document.getElementById("copyLastBtn").addEventListener("click",    copyLast);
   document.getElementById("exportBtn").addEventListener("click",      Chat.exportChat);
